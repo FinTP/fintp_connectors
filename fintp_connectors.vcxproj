@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{5B6B7901-9F9D-4D5F-B249-E59D2116F383}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>fintp_connectors</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <IncludePath>..\fintp_base\src;..\fintp_log\src;..\fintp_utils\src;..\fintp_transport\src;..\fintp_udal\src;$(IncludePath)</IncludePath>
+    <LibraryPath>..\fintp_base\$(Configuration);..\fintp_log\$(Configuration);..\fintp_utils\$(Configuration);..\fintp_transport\$(Configuration);..\fintp_udal\$(Configuration);$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>..\fintp_base\src;..\fintp_log\src;..\fintp_utils\src;..\fintp_transport\src;..\fintp_udal\src;$(IncludePath)</IncludePath>
+    <LibraryPath>..\fintp_base\$(Configuration);..\fintp_log\$(Configuration);..\fintp_utils\$(Configuration);..\fintp_transport\$(Configuration);..\fintp_udal\$(Configuration);$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;XALAN_1_9;DEBUG_ENABLED;RTTI;USE_BOOST_REGEX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>pthreadVSE.lib;xerces-c_2d.lib;Xalan-C_1d.lib;Ws2_32.lib;fintp_udald.lib;fintp_based.lib;fintp_utilsd.lib;fintp_logd.lib;fintp_transportd.lib;libtiff.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;XALAN_1_9;DEBUG_ENABLED;RTTI;USE_BOOST_REGEX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>pthreadVSE.lib;xerces-c_2.lib;Xalan-C_1.lib;Ws2_32.lib;fintp_udal.lib;fintp_base.lib;fintp_utils.lib;fintp_log.lib;fintp_transport.lib;libtiff.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Connector.cpp" />
+    <ClCompile Include="src\ConnectorMain.cpp" />
+    <ClCompile Include="src\DbConnector\DbFetcher.cpp" />
+    <ClCompile Include="src\DbConnector\DbPublisher.cpp" />
+    <ClCompile Include="src\Endpoint.cpp" />
+    <ClCompile Include="src\FileConnector\FileFetcher.cpp" />
+    <ClCompile Include="src\FileConnector\FilePublisher.cpp" />
+    <ClCompile Include="src\Management\Management.cpp" />
+    <ClCompile Include="src\Message.cpp" />
+    <ClCompile Include="src\MqConnector\MqFetcher.cpp" />
+    <ClCompile Include="src\MqConnector\MqPublisher.cpp" />
+    <ClCompile Include="src\VersionInfo.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Connector.h" />
+    <ClInclude Include="src\ConnectorMain.h" />
+    <ClInclude Include="src\DbConnector\DbFetcher.h" />
+    <ClInclude Include="src\DbConnector\DbPublisher.h" />
+    <ClInclude Include="src\Endpoint.h" />
+    <ClInclude Include="src\FileConnector\FileFetcher.h" />
+    <ClInclude Include="src\FileConnector\FilePublisher.h" />
+    <ClInclude Include="src\Management\Management.h" />
+    <ClInclude Include="src\Message.h" />
+    <ClInclude Include="src\MqConnector\MqFetcher.h" />
+    <ClInclude Include="src\MqConnector\MqPublisher.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

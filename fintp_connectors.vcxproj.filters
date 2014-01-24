@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\DbConnector">
+      <UniqueIdentifier>{58b9bf19-ee11-4e85-9eb0-84b9896db65b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\FileConnector">
+      <UniqueIdentifier>{04269a24-6e48-455a-a358-6fdbab7f07f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Management">
+      <UniqueIdentifier>{350df541-a6fb-4d42-b915-8a879553c7e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\MqConnector">
+      <UniqueIdentifier>{7569e359-1c71-4bd9-a63e-e2e5ad8330d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\DbConnector">
+      <UniqueIdentifier>{48bafe64-a231-474c-8323-cf8f9e2e7c0f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\FileConnector">
+      <UniqueIdentifier>{da7e97b7-b68f-4d4f-9e93-d472a3d0e938}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Management">
+      <UniqueIdentifier>{a6a8fcaf-87a6-495f-93d6-b7604ba60a50}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\MqConnector">
+      <UniqueIdentifier>{d665ae5a-82d8-48e8-9793-02dc850de313}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Connector.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ConnectorMain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Endpoint.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Message.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\VersionInfo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DbConnector\DbPublisher.cpp">
+      <Filter>Source Files\DbConnector</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DbConnector\DbFetcher.cpp">
+      <Filter>Source Files\DbConnector</Filter>
+    </ClCompile>
+    <ClCompile Include="src\FileConnector\FilePublisher.cpp">
+      <Filter>Source Files\FileConnector</Filter>
+    </ClCompile>
+    <ClCompile Include="src\FileConnector\FileFetcher.cpp">
+      <Filter>Source Files\FileConnector</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Management\Management.cpp">
+      <Filter>Source Files\Management</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MqConnector\MqFetcher.cpp">
+      <Filter>Source Files\MqConnector</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MqConnector\MqPublisher.cpp">
+      <Filter>Source Files\MqConnector</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Connector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ConnectorMain.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Endpoint.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Message.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\DbConnector\DbPublisher.h">
+      <Filter>Header Files\DbConnector</Filter>
+    </ClInclude>
+    <ClInclude Include="src\DbConnector\DbFetcher.h">
+      <Filter>Header Files\DbConnector</Filter>
+    </ClInclude>
+    <ClInclude Include="src\FileConnector\FilePublisher.h">
+      <Filter>Header Files\FileConnector</Filter>
+    </ClInclude>
+    <ClInclude Include="src\FileConnector\FileFetcher.h">
+      <Filter>Header Files\FileConnector</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Management\Management.h">
+      <Filter>Header Files\Management</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MqConnector\MqPublisher.h">
+      <Filter>Header Files\MqConnector</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MqConnector\MqFetcher.h">
+      <Filter>Header Files\MqConnector</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
