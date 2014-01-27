@@ -19,16 +19,7 @@ Requirements
 
 Build instructions
 ------------------
-- On Unix-like systems, **fintp_connectors** uses the GNU Build System (Autotools) so we first need to generate the configuration script using:
-
-
-        autoreconf -fi
-Now we must run:
-
-        ./configure [--with-udal]
-        make
-By default, a MQ connector is built. Using **--with-udal** will build a database connector.
-- For Windows, a Visual Studio 2010 solution is provided.
+See [Build Instructions](https://github.com/FinTP/fintp_connectors/wiki/Build-instructions) for steps required to build a fintp connector.
 
 License
 -------
