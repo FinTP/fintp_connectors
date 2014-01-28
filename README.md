@@ -13,7 +13,7 @@ See [Usage](https://github.com/FinTP/fintp_connectors/wiki/Usage) for a list of 
 
 Installation
 -----
-See [Installation](https://github.com/FinTP/fintp_connectors/wiki/Installation) for steps required to install and configure the API.
+See [Installation](https://github.com/FinTP/fintp_connectors/wiki/Installation) for steps required to install and configure a connector.
 
 Contributing
 -----
