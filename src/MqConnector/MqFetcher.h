@@ -24,6 +24,8 @@
 #include "MQ/MqWatcher.h"
 #include "TransportHelper.h"
 #include "../Endpoint.h"
+#include "Swift/SAAFilter.h"
+#include "Swift/SwiftFormatFilter.h"
 
 #ifndef NO_DB
 	#include "Database.h"
@@ -84,6 +86,10 @@ class MqFetcher : public Endpoint
 		string m_WatchQueueManager;
 		string m_TransportURI;
 
+		string m_StrictSwiftFormat;
+		SwiftFormatFilter* m_SAASingleFilter;
+		SAAFilter* m_SAAGroupFilter;
+
 		string m_SSLKeyRepos, m_SSLCypherSpec, m_SSLPeerName;
 		bool m_IsSigned;
 		string m_CertificateFileName, m_CertificatePasswd;
@@ -110,6 +116,7 @@ class MqFetcher : public Endpoint
 		string m_UserPassword;			//Connector Password
 
 		string m_IDCertificateFileName, m_IDCertificatePasswd;
+		string m_LAUKey;
 
 		bool m_IsCurrentMessageID ;
 		bool m_IsIDsEnabled ;

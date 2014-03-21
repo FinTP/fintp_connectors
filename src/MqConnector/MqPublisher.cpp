@@ -81,7 +81,7 @@ const string MqPublisher::BLX_NAMESPACE = "urn:swift:xs:CoreBlkBillXch";
 MqPublisher::MqPublisher() : Endpoint(), m_Watcher( &m_NotificationPool ), m_WatchQueue( "" ), m_WatchQueueManager( "" ), 
 	m_WatchTransportURI( "" ), m_WMQBatchFilter( false ), m_AppQueue( "" ), m_AppQmgr( "" ), m_AppTransportURI( "" ), 
 	m_SSLKeyRepos( "" ), m_SSLCypherSpec( "" ), m_SSLPeerName( "" ), m_CertificateFileName( "" ), m_CertificatePasswd( "" ),
-	m_RepliesQueue( "" ), m_NotificationTypeXML( true ), m_CurrentHelper( NULL ), m_Metadata(),
+	m_RepliesQueue( "" ), m_NotificationTypeXML( true ), m_CurrentHelper( NULL ), m_Metadata(), m_SAAFilter( NULL ),
 	m_BatchManagerID( BatchManagerBase::ZIP, BatchResolution::SYNCHRONOUS ), m_IsIDsEnabled( false ), m_IsCurrentBatchID( false ), m_CurrentSequence( 0 ),
 	m_DatabaseProvider( "" ), m_DatabaseName( "" ), m_UserName( "" ), m_UserPassword( "" ),
 	m_IDCertificateFileName( "" ), m_IDCertificatePasswd( "" ), m_LastIdImageInZip( "" )
@@ -98,6 +98,8 @@ MqPublisher::MqPublisher() : Endpoint(), m_Watcher( &m_NotificationPool ), m_Wat
 MqPublisher::~MqPublisher()
 {
 	DEBUG2( "DESTRUCTOR" );
+
+	delete m_SAAFilter;
 
 #ifndef NO_DB
 	try
@@ -158,6 +160,34 @@ void MqPublisher::Init()
 	
 	string notificationType = getGlobalSetting( EndpointConfig::WMQToApp, EndpointConfig::NOTIFTYPE, "XML" );
 
+	m_ParamFileXslt = getGlobalSetting( EndpointConfig::WMQToApp, EndpointConfig::PARAMFXSLT, "" );
+	m_TransformFile = getGlobalSetting( EndpointConfig::WMQToApp, EndpointConfig::FILEXSLT, "" );
+	m_StrictSwiftFormat = getGlobalSetting( EndpointConfig::WMQToApp, EndpointConfig::STRICTSWIFTFMT, "" );
+	m_LAUKey = getGlobalSetting( EndpointConfig::WMQToApp, EndpointConfig::LAUCERTIFICATE, "" );
+
+	if( m_StrictSwiftFormat == SwiftFormatFilter::SAA_FIN )
+	{
+		if( m_SAAFilter != NULL  )
+			delete m_SAAFilter;
+		m_SAAFilter = new SwiftFormatFilter();
+	}
+	else if ( m_StrictSwiftFormat == SwiftFormatFilter::SAA_FILEACT )
+	{
+		if ( m_ParamFileXslt.empty() )
+			throw logic_error( "Missing MQSeriesToApp.ParamFileXsltkey from .config file" );
+
+		boost::shared_ptr< BatchManager< BatchMQStorage > > batchManager( new BatchManager< BatchMQStorage > ( BatchManagerBase::MQ, BatchResolution::SYNCHRONOUS ) );
+		batchManager->storage().initialize( currentHelperType );
+		batchManager->storage().setQueue( m_AppQueue );
+		batchManager->storage().setQueueManager( m_AppQmgr );
+		batchManager->storage().setTransportURI( m_AppTransportURI );
+		batchManager->storage().setReplyOptions( "MQRO_NAN+MQRO_PAN+MQRO_COPY_MSG_ID_TO_CORREL_ID" );
+		batchManager->storage().setReplyQueue( m_RepliesQueue );
+		if( m_SAAFilter != NULL  )
+			delete m_SAAFilter;
+		m_SAAFilter = new SAAFilter( batchManager );
+	}
+
 	// ID config
 	string isIDEnabled = getGlobalSetting( EndpointConfig::WMQToApp, EndpointConfig::ISIDENABLED, "false" );
 	m_IsIDsEnabled = ( isIDEnabled == "true" );
@@ -193,6 +223,17 @@ void MqPublisher::Init()
 					//Set BatchXPath
 					batchManager->storage().setXPath( batchXPath );
 					batchManager->storage().setXPathCallback( MqPublisher::XPathCallback );
+				}
+				//This one is more general and should take over in the future
+				else if( haveGlobalSetting( EndpointConfig::WMQToApp, EndpointConfig::BATCHMGRXSLT ) )
+				{
+					string batchXsltFile = getGlobalSetting( EndpointConfig::WMQToApp, EndpointConfig::BATCHMGRXSLT );
+
+					BatchManager< BatchXMLfileStorage >* batchManager = dynamic_cast< BatchManager< BatchXMLfileStorage >* >( m_BatchManager );
+					if ( batchManager == NULL )
+						throw logic_error( "Bad type : batch manager is not of XML type" );
+
+					batchManager->storage().setXslt( batchXsltFile );
 				}
 			}
 			else
@@ -259,7 +300,7 @@ void MqPublisher::Init()
 #ifdef WMQTOAPP_BACKUP
 	string backupQueue = getGlobalSetting( EndpointConfig::WMQToApp, EndpointConfig::BAKQUEUE, "" );
 	if ( backupQueue.length() )
-		m_CurrentHelper.setBackupQueue( backupQueue );
+		m_CurrentHelper->setBackupQueue( backupQueue );
 #endif
 
 	//ID configs
@@ -1026,6 +1067,28 @@ void MqPublisher::Process( const string& correlationId )
 
 				// get batch xml document
 				messageOutput = batchManager->storage().getSerializedXml();
+				if ( !m_TransformFile.empty() )
+				{
+					NameValueCollection transportHeaders;
+					transportHeaders.Add( XSLTFilter::XSLTFILE, m_TransformFile );
+					XERCES_CPP_NAMESPACE_QUALIFIER DOMDocument* xmlBatchManager = NULL;
+					WorkItem< ManagedBuffer > output( new ManagedBuffer() );
+					ManagedBuffer* outputBuffer = output.get();
+					try
+					{
+						xmlBatchManager = XmlUtil::DeserializeFromString( messageOutput );
+						XSLTFilter xsltFilter;
+						xsltFilter.ProcessMessage( xmlBatchManager, output, transportHeaders, true );
+						messageOutput = outputBuffer->str();
+					}
+					catch ( ... )
+					{
+						if ( xmlBatchManager != NULL )
+							xmlBatchManager->release();
+						throw;
+					}
+					xmlBatchManager->release();
+				}
 				xmlStorageEnques = batchManager->storage().getCrtSequence();
 			}
 
@@ -1159,8 +1222,7 @@ void MqPublisher::Process( const string& correlationId )
 					DEBUG( "Reply-to QM : [" << rtqmName << "]" );
 					
 					if ( m_TransportHeaders.ContainsKey( MqFilter::MQREPLYOPTIONS ) )
-						replyOptions.Parse( m_TransportHeaders[ MqFilter::MQREPLYOPTIONS ] );
-					
+						replyOptions.Parse( m_TransportHeaders[ MqFilter::MQREPLYOPTIONS ] );			
 					if ( m_IsCurrentBatchID )
 					{
 						m_CurrentHelper->setMessageFormat( TransportHelper::TMT_NONE );
@@ -1178,8 +1240,7 @@ void MqPublisher::Process( const string& correlationId )
 					
 					// prepare opened app queue, now, if we're sending a reply open the replies queue
 					if ( m_RepliesQueue != m_AppQueue )
-						m_CurrentHelper->openQueue( m_RepliesQueue );
-					
+						m_CurrentHelper->openQueue( m_RepliesQueue );		
 					if ( m_IsCurrentBatchID )
 					{
 						m_CurrentHelper->setMessageFormat( TransportHelper::TMT_NONE );
@@ -1195,6 +1256,24 @@ void MqPublisher::Process( const string& correlationId )
 				{
 					m_CurrentHelper->setMessageFormat( TransportHelper::TMT_NONE );
 					m_CurrentHelper->putOne( messageOutputID->buffer(), messageOutputID->size() );
+				}
+				//TODO: SAA for DI
+				else if ( !m_StrictSwiftFormat.empty() )
+				{
+					WorkItem< ManagedBuffer > managedOutputBuffer ( new ManagedBuffer( ) );
+					ManagedBuffer* outputBuffer = managedOutputBuffer.get();
+
+					NameValueCollection transportHeaders;
+					transportHeaders.Add( XSLTFilter::XSLTFILE, m_ParamFileXslt );
+					transportHeaders.Add( MqFilter::MQGROUPID, m_Metadata.groupId() );
+					transportHeaders.Add( SwiftFormatFilter::LAU_KEY, m_LAUKey );
+					transportHeaders.Add( SwiftFormatFilter::SERVICE_KEY, m_StrictSwiftFormat );
+					WorkItem<ManagedBuffer> managedInputBuffer( new ManagedBuffer( ( unsigned char* ) messageOutput.data(), ManagedBuffer::Ref, messageOutput.size() ) );
+
+					//with with StrictSwiftFormat::SAA_FILEACT message will be put to MQ (empty outputBuffer)
+					m_SAAFilter->ProcessMessage( managedInputBuffer, managedOutputBuffer, transportHeaders, false );
+					if( m_StrictSwiftFormat == SwiftFormatFilter::SAA_FIN )
+						m_CurrentHelper->putOne( outputBuffer->buffer(), outputBuffer->size() );
 				}
 				else
 					m_CurrentHelper->putOne( ( unsigned char* )messageOutput.data(), messageOutput.size() );
@@ -1256,7 +1335,9 @@ void MqPublisher::Commit()
 		//TODO check return code
 		m_FilterChain->Commit();
 		m_CurrentHelper->commit();
-		
+		if ( m_SAAFilter )
+			m_SAAFilter->Commit();
+
 		//remove any notification with same batch that occurs while processing last batch
 		try
 		{
@@ -1300,6 +1381,8 @@ void MqPublisher::Abort()
 	// close queue, disconnect
 	m_CurrentHelper->closeQueue();
 	m_CurrentHelper->disconnect();
+	if ( m_SAAFilter )
+		m_SAAFilter->Rollback();
 
 	m_IsLast = true;
 }
@@ -1313,6 +1396,8 @@ void MqPublisher::Rollback()
 	m_BatchManager->close( m_Metadata.groupId() );
 	m_CurrentHelper->closeQueue();
 	m_CurrentHelper->disconnect();
+	if ( m_SAAFilter )
+		m_SAAFilter->Rollback();
 
 	m_IsLast = true;
 }

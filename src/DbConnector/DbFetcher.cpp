@@ -55,7 +55,7 @@ DbFetcher::DbFetcher() : Endpoint(), m_Watcher( DbFetcher::NotificationCallback 
 m_CurrentRowId( "" ), m_UncommitedTrns( 0 ), m_MaxUncommitedTrns( -1 ), m_CurrentMessage( NULL ), m_CurrentMessageStr( NULL ),
 	m_NotificationTypeXML( false ), m_DatabaseProvider( "" ), m_DatabaseName( "" ), m_UserName( "" ), m_UserPassword( "" ),
 	m_TableName( "" ), m_SPmarkforprocess( "" ), m_SPselectforprocess( "" ), m_SPmarkcommit( "" ), m_SPmarkabort( "" ),	m_SPWatcher( "" ),
-	m_CurrentDatabase( NULL ), m_CurrentProvider( NULL ), m_Rollback( false ), m_SavedMessage( NULL )
+	m_CurrentDatabase( NULL ), m_CurrentProvider( NULL ), m_Rollback( false ), m_SavedMessage( NULL ), m_DatabaseToXmlTrimm ( true )
 {	
 	DEBUG2( "CONSTRUCTOR" );
 }
@@ -151,6 +151,9 @@ void DbFetcher::Init()
 
 	string notificationType = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::NOTIFTYPE, "XML" );
 	m_NotificationTypeXML = ( notificationType == "XML" );
+
+	string dbResultSetTrimm = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::DBTOXMLTRIMM, "true" );
+	m_DatabaseToXmlTrimm = ( dbResultSetTrimm == "true" );
 
 	// if mark for process is missing, the watcher will return the full object, not just the notification
 	if( m_SPmarkforprocess.length() == 0 )
@@ -484,8 +487,7 @@ void DbFetcher::Process( const string& correlationId )
 		//Convert Data to XML DOM format
 		try
 		{
-//TODO Fix this
-//			m_CurrentMessage = Database::ConvertToXML( theDataSet );
+			m_CurrentMessage = Database::ConvertToXML( theDataSet, m_DatabaseToXmlTrimm );
 			
 			if ( m_CurrentMessage == NULL ) 
 				throw runtime_error( "Conversion to XML resulted in an empty document" );

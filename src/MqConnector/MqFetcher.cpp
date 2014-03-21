@@ -72,7 +72,7 @@ MqFetcher::MqFetcher() : Endpoint(), m_Watcher( &m_NotificationPool ),	m_WatchQu
 	m_WatchQueueManager( "" ), m_TransportURI( "" ), m_SSLKeyRepos( "" ), m_SSLCypherSpec( "" ), m_SSLPeerName( "" ), 
 	m_IsSigned( false ), m_IsIDsEnabled( false), m_IsCurrentMessageID( false ), 
 	m_firstBatchId( "" ), m_PreviousImageRef( "" ), m_CurrentMessageId( "" ), m_CurrentGroupId( "" ), m_CurrentMessageLength( 0 ), m_CurrentSequence( 0 ), 
-	m_BatchXsltFile( "" ), m_CurrentHelper( NULL )
+	m_BatchXsltFile( "" ), m_CurrentHelper( NULL ), m_StrictSwiftFormat ( "" ), m_SAAGroupFilter( NULL ), m_SAASingleFilter( NULL )
 	
 {
 	DEBUG2( "CONSTRUCTOR" );
@@ -121,10 +121,23 @@ MqFetcher::~MqFetcher()
 		} catch( ... ){}
 	}
 #endif
+	if ( m_SAASingleFilter != NULL )
+	{
+		delete m_SAASingleFilter;
+		m_SAASingleFilter = NULL;
+	}
+
+	if ( m_SAAGroupFilter != NULL )
+	{
+		delete m_SAAGroupFilter;
+		m_SAAGroupFilter = NULL;
+	}
 }
 
 void MqFetcher::Init()
 {
+	const int AUTO_ABANDON = 3;
+
 	DEBUG( "INIT" );
 	INIT_COUNTERS( &m_Watcher, MqFetcherWatcher );
 	
@@ -135,7 +148,9 @@ void MqFetcher::Init()
 
 	m_WatchQueue = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::APPQUEUE );
 	m_WatchQueueManager = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::WMQQMGR );
-	
+
+	string backupQueue = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::BAKQUEUE, "" );
+
 	m_SSLKeyRepos = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::WMQKEYREPOS, "" );
 	m_SSLCypherSpec = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::WMQSSLCYPHERSPEC, "" );
 	m_SSLPeerName = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::WMQPEERNAME, "" );
@@ -145,6 +160,36 @@ void MqFetcher::Init()
 
 	string isSigned = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::ISSIGNED, "false" );
 	m_IsSigned = ( isSigned == "true" );
+
+	//Strict Swift Format config
+	m_StrictSwiftFormat = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::STRICTSWIFTFMT , "" );
+	m_LAUKey = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::LAUCERTIFICATE, "" );
+
+	// if we have ssl, the channel definition is missing, so allow blank
+	m_TransportURI = getGlobalSetting( EndpointConfig::AppToMQ, EndpointConfig::MQURI, "" );
+
+	if( !m_StrictSwiftFormat.empty() )
+	{
+		if( m_SAASingleFilter != NULL  )
+			delete m_SAASingleFilter;
+		m_SAASingleFilter = new SwiftFormatFilter();
+		if( m_StrictSwiftFormat == SwiftFormatFilter::SAA_FILEACT )
+		{
+			DEBUG( "SAA MQHA message should be part of wmq group" );
+			boost::shared_ptr< BatchManager< BatchMQStorage > > batchManager( new BatchManager< BatchMQStorage > ( BatchManagerBase::MQ, BatchResolution::SYNCHRONOUS ) );
+			batchManager->storage().initialize( currentHelperType );
+			batchManager->storage().setQueue( m_WatchQueue );
+			batchManager->storage().setQueueManager( m_WatchQueueManager );
+			batchManager->storage().setTransportURI( m_TransportURI );
+			batchManager->storage().setAutoAbandon( AUTO_ABANDON );
+			if( !backupQueue.empty() )
+				batchManager->storage().setBackupQueue( backupQueue );
+
+			if( m_SAAGroupFilter != NULL  )
+				delete m_SAAGroupFilter;
+			m_SAAGroupFilter = new SAAFilter( batchManager );
+		}
+	}
 
 	// ID config
 	string isIDEnabled = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::ISIDENABLED, "false" );
@@ -159,10 +204,7 @@ void MqFetcher::Init()
 	m_DatabaseName = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::DBNAME, "" );
 	m_UserName = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::DBUSER, "" );
 	m_UserPassword = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::DBPASS, "" );
-	
-	// if we have ssl, the channel definition is missing, so allow blank
-	m_TransportURI = getGlobalSetting( EndpointConfig::AppToMQ, EndpointConfig::MQURI, "" );
-	
+
 	if ( haveGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::BATCHMGRTYPE ) )
 	{
 		string batchManagerType = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::BATCHMGRTYPE );		
@@ -224,7 +266,6 @@ void MqFetcher::Init()
 	//TODO check delete rights on m_WatchQueue - can't delete source otherwise
 	m_CurrentHelper->setAutoAbandon( 3 );
 
-	string backupQueue = getGlobalSetting( EndpointConfig::AppToWMQ, EndpointConfig::BAKQUEUE, "" );
 	if ( backupQueue.length() )
 		m_CurrentHelper->setBackupQueue( backupQueue );
 
@@ -307,13 +348,21 @@ void MqFetcher::internalStart()
 
 	try
 	{
+		bool succeeded = false;
 		while( m_Running )
 		{
 			DEBUG( "Fetcher [" << m_SelfThreadId << "] waiting for notifications in pool" );
 			WorkItem< AbstractWatcher::NotificationObject > notification = m_NotificationPool.removePoolItem();
 			
 			AbstractWatcher::NotificationObject *notificationObject = notification.get();
-			
+
+			// if we're getting groups, and the previous group is the same as this batch, skip notification
+			if ( succeeded && ( notificationObject->getObjectGroupId() == m_CurrentGroupId ) && ( notificationObject->getObjectId() == m_CurrentMessageId ) )
+			{
+				TRACE( "This message: Message Id = [" << m_CurrentMessageId << "], Group Id = [" << m_CurrentGroupId << "] was already processed. Skipping ..." );
+				continue;
+			}
+
 			m_CurrentMessageId = notificationObject->getObjectId();
 			m_CurrentMessageLength = notificationObject->getObjectSize();
 			m_CurrentGroupId = notificationObject->getObjectGroupId();
@@ -325,7 +374,7 @@ void MqFetcher::internalStart()
 			m_IsLast = false;
 			m_firstBatchId= "";
 			//TODO throw only on fatal error. The connector should respawn this thread
-			bool succeeded = true;
+			succeeded = true;
 			try
 			{
 				DEBUG( "Performing message loop ... " );
@@ -456,9 +505,13 @@ void MqFetcher::Process( const string& correlationId )
 {
 	DEBUG( "PROCESS" );
 	DEBUG( "Current message length : " << m_CurrentMessageLength );
-	
+
 	m_TransportHeaders.Clear();
-	
+	string wmqFormat = TransportHelper::TMT_STRING;
+	long mqType = TransportHelper::TMT_DATAGRAM;
+	long mqFeedback = 0;
+	string mqPutTime = "";
+
 	WorkItem< ManagedBuffer > managedBuffer( new ManagedBuffer() );
 	ManagedBuffer* buffer = managedBuffer.get();
 
@@ -466,14 +519,69 @@ void MqFetcher::Process( const string& correlationId )
 	{		
 		try
 		{
-			//TODO check return code
-			m_CurrentHelper->setMessageId( m_CurrentMessageId );
-			
-			// get one message using syncpoint ( the buffer will grow to accomodate the message )
-			long result = m_CurrentHelper->getOne( buffer, true, false );
-			DEBUG2( "OriginalMessage is : [" << buffer->str() << "]" );
-			
-			// no message 
+			long result = -1;
+			unsigned char emptyGroupId[24];
+			for( int i = 0; i < 24; i++ ) emptyGroupId[i] = '\0';
+			bool isSingle = ( Base64::encode( emptyGroupId, 24 ) == m_CurrentGroupId || m_CurrentGroupId.empty()  ) ? true : false;
+
+			if( isSingle )
+			{
+				//TODO check return code
+				m_CurrentHelper->setMessageId( m_CurrentMessageId );
+				result = m_CurrentHelper->getOne( buffer, true );
+
+				DEBUG2( "OriginalMessage is : [" << buffer->str() << "]" );
+				if( m_CurrentMessageLength != buffer->size() )
+				{
+					TRACE( "The current message size is not the same as notification size, override the current message length to " << buffer->size() );
+					m_CurrentMessageLength = buffer->size();
+				}
+
+				wmqFormat = m_CurrentHelper->getLastMessageFormat();
+				mqType = m_CurrentHelper->getLastMessageType();
+				if (  mqType == TransportHelper::TMT_REPLY )
+					mqFeedback = m_CurrentHelper->getLastFeedback();
+				time_t putTime = m_CurrentHelper->getMessagePutTime();
+				mqPutTime = TimeUtil::Get( "%d/%m/%Y %H:%M:%S", 19, &putTime );
+			}
+
+			// with StrictSwiftFormat::SAA_FILEACT messages will be get as MQ groups
+			// with StrictSwiftFormat::SAA_FIN messages will only be LAU checked
+			if( !m_StrictSwiftFormat.empty() )
+			{
+				WorkItem<ManagedBuffer> managedInputBuffer( new ManagedBuffer() );
+				ManagedBuffer* inputBuffer = managedInputBuffer.get();
+
+				WorkItem< ManagedBuffer > managedOutputBuffer ( new ManagedBuffer( ) );
+				ManagedBuffer* outputBuffer = managedOutputBuffer.get();
+
+				NameValueCollection transportHeaders;
+				transportHeaders.Add( MqFilter::MQGROUPID, m_CurrentGroupId );
+				transportHeaders.Add( SwiftFormatFilter::LAU_KEY, m_LAUKey );
+				transportHeaders.Add( SwiftFormatFilter::SERVICE_KEY, m_StrictSwiftFormat );
+
+				if( isSingle )
+				{
+					inputBuffer->copyFrom( buffer->buffer(), m_CurrentMessageLength );
+					m_SAASingleFilter->ProcessMessage( managedInputBuffer, managedOutputBuffer, transportHeaders, true );
+				}
+				else if( m_SAAGroupFilter != NULL )
+					m_SAAGroupFilter->ProcessMessage( managedInputBuffer, managedOutputBuffer, transportHeaders, true );
+				else
+				{
+					AppException aex( "Group messages process only if AppToMQSeries.StrictSWIFTFormat key is SAA_FILEACT", EventType::Error );
+					aex.setSeverity( EventSeverity::Fatal );
+
+					throw aex;
+				}
+
+				buffer->copyFrom( managedOutputBuffer.get() );
+				if( mqPutTime.empty() )
+					 mqPutTime = transportHeaders[SAAFilter::MESSAGE_DATE];
+				result = 0;
+			}
+
+			// no message
 			if ( result == -1 )
 			{
 				AppException aex( "No message matching the specified ids was found.", EventType::Warning );
@@ -481,7 +589,7 @@ void MqFetcher::Process( const string& correlationId )
 
 				throw aex;
 			}
-			// the message was moved to dead letter
+			// the message was moved to dead letter! If message is not member of a group, transaction is already commited by m_CurrentHelper->getOne();
 			if ( result == -2 )
 			{
 				AppException aex( "Undeliverable message sent to dead letter queue because the backout count was exceeded", EventType::Warning );
@@ -526,7 +634,62 @@ void MqFetcher::Process( const string& correlationId )
 			
 			throw AppException( errorMessage.str() );
 		}
-	
+
+		if( m_IsSigned )
+		{
+			SSLFilter* sslFilter = NULL;
+
+			try
+			{
+				sslFilter = new SSLFilter();
+
+				DEBUG( "Applying SSL filter..." );
+
+				WorkItem< ManagedBuffer > managedInputBuffer( new ManagedBuffer() );
+				ManagedBuffer* inputBuffer = managedInputBuffer.get();
+
+				unsigned long dataLength = m_CurrentMessageLength;
+				//skip headers ( jms )
+				inputBuffer->copyFrom( buffer->buffer(), dataLength );
+
+				WorkItem< ManagedBuffer > managedOutputBuffer( new ManagedBuffer() );
+				ManagedBuffer* outputBuffer = managedOutputBuffer.get();
+
+				sslFilter->ProcessMessage( managedInputBuffer, managedOutputBuffer, m_TransportHeaders, true );
+
+				buffer->copyFrom( outputBuffer );
+
+				DEBUG( "Current message is : [" << buffer->str() << "]" );
+
+				if( sslFilter != NULL )
+				{
+					delete sslFilter;
+					sslFilter = NULL;
+				}
+
+			}
+			catch( const std::exception& ex )
+			{
+				if ( sslFilter != NULL )
+				{
+					delete sslFilter;
+					sslFilter = NULL;
+				}
+				throw;
+			}
+			catch( ... )
+			{
+				if( sslFilter != NULL )
+				{
+					delete sslFilter;
+					sslFilter = NULL;
+				}
+				TRACE( "Error while applying ssl filter" );
+				throw;
+			}
+
+		}
+
 #ifndef NO_DB
 		m_IsCurrentMessageID = false;
 		if( m_IsIDsEnabled && ( m_CurrentHelper->getLastMessageFormat() != TransportHelper::TMT_STRING ) )
@@ -745,61 +908,8 @@ void MqFetcher::Process( const string& correlationId )
 		}// end DI pre-process
 #endif
 
-		if( m_IsSigned )
-		{
-			SSLFilter* sslFilter = NULL;
-			
-			try
-			{
-				sslFilter = new SSLFilter();
+		DEBUG( "Message is in buffer; size is : " << buffer->size() );
 
-				DEBUG( "Applying SSL filter..." );
-							
-				WorkItem< ManagedBuffer > managedInputBuffer( new ManagedBuffer() );
-				ManagedBuffer* inputBuffer = managedInputBuffer.get();
-								
-				//buffer contains no headers ( jms )
-				inputBuffer->copyFrom( buffer->buffer(), buffer->size() );
-			
-				WorkItem< ManagedBuffer > managedOutputBuffer( new ManagedBuffer() );
-				ManagedBuffer* outputBuffer = managedOutputBuffer.get();
-			
-				sslFilter->ProcessMessage( managedInputBuffer, managedOutputBuffer, m_TransportHeaders, true );
-		
-				buffer->copyFrom( outputBuffer );
-				
-				DEBUG( "Current message is : [" << buffer->str() << "]" );
-			
-				if( sslFilter != NULL )
-				{
-					delete sslFilter;
-					sslFilter = NULL;
-				}
-				
-			}
-			catch( const std::exception& ex )
-			{
-				if ( sslFilter != NULL )
-				{
-					delete sslFilter;
-					sslFilter = NULL;
-				}
-				throw;
-			}
-			catch( ... )
-			{
-				if( sslFilter != NULL )
-				{
-					delete sslFilter;
-					sslFilter = NULL;
-				}
-				TRACE( "Error while applying ssl filter" );
-				throw;
-			}
-
-		} 
-		DEBUG( "Message is in buffer; size is : " << m_CurrentMessageLength );
-		
 		// If BatchManager then the message read from mq is a batch Xml
 		// ordinary messages will be read from Batch and processed by filters
 		
@@ -813,7 +923,7 @@ void MqFetcher::Process( const string& correlationId )
 			// this may fail for non-xml messages ... 
 			try
 			{
-				if( m_IsSigned || m_IsCurrentMessageID )
+				if( m_IsSigned || m_IsCurrentMessageID || ( !m_StrictSwiftFormat.empty() ) )
 					batchManager->storage().setSerializedXml( buffer->buffer(), buffer->size() );
 				else
 					//Set batch Xml message read from MQ, skip headers ( jms )
@@ -857,9 +967,15 @@ void MqFetcher::Process( const string& correlationId )
 	else
 	{
 		batchId = m_CurrentGroupId.substr( 0, 30 );
-
 		m_IsLast = true;
-		inputBuffer->copyFrom( buffer->buffer(), buffer->size() );
+
+		if( m_IsSigned || ( !m_StrictSwiftFormat.empty() ) )
+		{
+			m_CurrentMessageLength = buffer->size();
+			inputBuffer->copyFrom( buffer->buffer(), buffer->size(), m_CurrentMessageLength );
+		}
+		else
+			inputBuffer->copyFrom( buffer->buffer(), m_CurrentMessageLength );
 	}
 
 #ifndef NO_DB
@@ -1053,6 +1169,8 @@ void MqFetcher::Commit()
 		}		
 #endif
 		m_FilterChain->Commit();
+		if( m_SAAGroupFilter != NULL )
+			m_SAAGroupFilter->Commit();
 		m_CurrentHelper->commit();
 		
 		if( m_BatchManager != NULL )
@@ -1077,6 +1195,8 @@ void MqFetcher::Abort()
 
 	// Rollback filter chain( messages put to mq )
 	m_FilterChain->Rollback();
+	if( m_SAAGroupFilter != NULL )
+		m_SAAGroupFilter->Commit();
 
 	//TODO move the message to dead letter queue or backout queue... for now, commit message got
 	m_CurrentHelper->commit();
@@ -1100,7 +1220,8 @@ void MqFetcher::Rollback()
 	// TODO check return codes...	
 	// Rollback filter chain( messages put to mq )
 	m_FilterChain->Rollback();
-
+	if( m_SAAGroupFilter != NULL )
+		m_SAAGroupFilter->Rollback();
 	// Rollback current helper ( the message got from mq )
 	m_CurrentHelper->rollback();
 

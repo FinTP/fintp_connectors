@@ -53,6 +53,23 @@
 #include "Connector.h"
 extern Connector *ConnectorInstance;
 
+#ifndef WIN32
+#include <time.h>
+void Sleep( unsigned long millisecondsToWait )
+{
+        timespec ts;
+
+        time_t seconds = millisecondsToWait / 1000;
+        long milliseconds = millisecondsToWait % 1000;
+
+        ts.tv_sec = seconds;
+        ts.tv_nsec = milliseconds * 1000000 ;
+        nanosleep(&ts, NULL);
+}
+#endif
+
+#define sleep(x) Sleep( (x) )
+
 AppSettings *Endpoint::m_GlobalSettings = NULL;
 void ( *Endpoint::m_ManagementCallback )( TransactionStatus::TransactionStatusEnum, void* additionalData ) = NULL;
 
@@ -178,6 +195,9 @@ string EndpointConfig::getName( const EndpointConfig::ConfigDirection prefix, co
 			( void )settingName.append( "TimestampFormat" );
 			break;
 
+		case DBTOXMLTRIMM :
+			( void )settingName.append( "DatabaseToXmlTrimming" );
+			break;
 
 		// MQ settings
 		case APPQUEUE :
@@ -386,6 +406,11 @@ Endpoint::Endpoint() : InstrumentedObject(), m_FatalError( false ), m_BatchManag
 
 	string trackMessages = getGlobalSetting( EndpointConfig::Common, EndpointConfig::TRACKMESSAGES, "false" );
 	m_TrackMessages = ( trackMessages == "true" );
+
+	if ( getGlobalSettings().getSettings().ContainsKey( "MessageThrottling" ) )
+		m_MessageThrottling = StringUtil::ParseUInt ( getGlobalSettings().getSettings()["MessageThrottling"] );
+	else
+		m_MessageThrottling = 0;
 
 	m_SelfThreadId = pthread_self();
 
@@ -648,6 +673,7 @@ bool Endpoint::PerformMessageLoop( bool inBatch )
 	m_FatalError = false;
 	bool result = false;
 		
+	sleep( m_MessageThrottling );
 	// do this in loop ( if there are more messages or backout for the last message is not exhausted )
 	if ( inBatch )
 	{

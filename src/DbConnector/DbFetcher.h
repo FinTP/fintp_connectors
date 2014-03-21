@@ -86,7 +86,8 @@ class ExportedTestObject DbFetcher : public Endpoint
 		XERCES_CPP_NAMESPACE_QUALIFIER DOMDocument *m_SavedMessage;
 		ManagedBuffer *m_CurrentMessageStr;
 		bool m_NotificationTypeXML, m_Rollback;
-		
+		bool m_DatabaseToXmlTrimm;
+
 		string m_DatabaseProvider;
 		string m_DatabaseName; 			//Connector Database Name
 		string m_UserName;				//Connector User

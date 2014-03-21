@@ -26,6 +26,7 @@
 #include "XPathHelper.h"
 #include "../Endpoint.h"
 #include "../Message.h"
+#include <boost/shared_ptr.hpp>
 
 #ifndef NO_DB
 	#include "Database.h"
@@ -33,6 +34,8 @@
 #endif
 
 #include "BatchManager/Storages/BatchZipArchiveStorage.h"
+#include "Swift/SAAFilter.h"
+#include "Swift/SwiftFormatFilter.h"
 
 using namespace std;
 
@@ -100,6 +103,8 @@ class MqPublisher : public Endpoint
 		//unsigned long m_CurrentMessageLength;
 		
 		TransportHelper* m_CurrentHelper;
+		AbstractFilter* m_SAAFilter;
+		string m_ParamFileXslt, m_StrictSwiftFormat, m_TransformFile;
 		
 		FinTPMessage::Metadata m_Metadata;
 		static MqPublisher* m_Me;
@@ -126,6 +131,7 @@ class MqPublisher : public Endpoint
 		string m_UserPassword;			//Connector Database Password
 
 		string m_IDCertificateFileName, m_IDCertificatePasswd;
+		string m_LAUKey;
 
 		static const string CHQ_NAMESPACE ;
 		static const string PRN_NAMESPACE ;

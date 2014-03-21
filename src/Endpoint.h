@@ -202,7 +202,12 @@ class ExportedTestObject EndpointConfig
 			 * Timestamp format for extract from database , default is DD.MM.YYYY HH:MI
 			 */
 		    TIMESTAMPFORMAT,
-			
+			/**
+			*Config name : <b>DatabaseToXmlTrimming</b>
+			*Trimming database fields when messages are getting from BO
+			*/
+			DBTOXMLTRIMM,
+
 			// MQ settings
 			/**
 			 * Config name : <b>AppQueue</b>
@@ -390,6 +395,8 @@ class ExportedTestObject EndpointConfig
 class ExportedTestObject Endpoint : public InstrumentedObject
 {
 	private :
+
+		unsigned int m_MessageThrottling;
 
 		string internalPrepare();
 		void internalCommit( const string& correlationId );
