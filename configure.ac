@@ -22,7 +22,7 @@ ENVIRONMENT
 
 AX_PTHREAD(, [AC_MSG_ERROR([Cannot build without pthread]) ])
 
-AC_SEARCH_LIBS([TIFFOpen], [tiff], AC_MSG_NOTICE([Found tiff]), \
+AC_SEARCH_LIBS([TIFFOpen], [tiffxx], AC_MSG_NOTICE([Found tiff]), \
 AC_MSG_ERROR([Cannot build without libtiff]))
 
 AC_ARG_WITH(tiff,

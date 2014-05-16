@@ -18,18 +18,15 @@
 * phone +40212554577, office@allevo.ro <mailto:office@allevo.ro>, www.allevo.ro.
 */
 
-#ifdef WIN32
-	/*#ifdef _DEBUG
-		//#define _CRTDBG_MAP_ALLOC
-		#include <stdlib.h>
-		#include <crtdbg.h>
-	#endif*/
-#endif
-
 #include <string>
 #include <sstream>
+
+#ifndef NO_DB
 #include <tiffio.h>
-//#include <iostream>
+#include <tiffio.hxx>
+#include "DataParameter.h"
+#include "ConnectionString.h"
+#endif
 
 #include "BatchManager/Storages/BatchZipArchiveStorage.h"
 #include "BatchManager/Storages/BatchXMLfileStorage.h"
@@ -51,11 +48,6 @@
 #include "Collaboration.h"
 #include "StringUtil.h"
 #include "Base64.h"
-
-#ifndef NO_DB
-	#include "DataParameter.h"
-	#include "ConnectionString.h"
-#endif
 
 #ifdef WIN32
 #define __MSXML_LIBRARY_DEFINED__
@@ -774,59 +766,34 @@ void MqFetcher::Process( const string& correlationId )
 					if ( eyecatcher.find( ".tif" ) != string::npos )
 					{	
 						string imgRef = "";
-						stringstream tiffFilename;
 						TIFF* tif = NULL;
+						const string tiffFileContents = crtBuffer->str();
 						try
 						{
-							tiffFilename << "temp" << zipItem.getEyecatcher();
-
-							ofstream outf;
-							outf.open( tiffFilename.str().c_str(), ios_base::out | ios_base::binary );
-							outf.write( ( char* )crtBuffer->buffer(), crtBuffer->size() );
-							outf.close();
-
-							// tiff
-							tif = TIFFOpen( tiffFilename.str().c_str(), "r" );
+							istringstream tempTiffFile( tiffFileContents );
+							tif = TIFFStreamOpen( "tempTiffFile", &tempTiffFile );
 							if ( tif == NULL )
 								throw logic_error( "Unable to open DI image." );
 
 							char* imgTagDescr = 0;
 							if ( !TIFFGetField( tif, TIFFTAG_IMAGEDESCRIPTION, &imgTagDescr ) )
-							{
-								TIFFClose( tif );
-								stringstream errorMessage;
-								errorMessage << "Problem fetching tag [" << TIFFTAG_IMAGEDESCRIPTION << "]";			
-								throw runtime_error( errorMessage.str() );
-							}
+								throw runtime_error( "Error encountered while fetching DI IMAGEDESCRIPTION TAG from file" );
+
 							imgRef = imgTagDescr;
-							if ( imgRef.length() == 0 )
+							if ( imgRef.empty() )
 								throw logic_error( "Extracted reference from DI image is blank." );
 
 							TIFFClose( tif );
-							remove( tiffFilename.str().c_str() );
-						}
-						catch( const std::exception& ex )
-						{
-							//vreau sa ajunga eveniment ca nu a fost procesat ID-ul
-							string exceptionType = typeid( ex ).name();
-							TRACE( exceptionType << " encountered while fetching DI IMAGEDESCRIPTION TAG from file [" << eyecatcher << " ]" );
-							if ( tif != NULL )
-								TIFFClose( tif );
-							remove( tiffFilename.str().c_str() );
-
-							throw;
 						}
 						catch( ... )
 						{
-							TRACE( "Unknown error encountered while fetching DI IMAGEDESCRIPTION TAG from file [" << eyecatcher << " ]" );
 							if ( tif != NULL )
 								TIFFClose( tif );
-							remove( tiffFilename.str().c_str() );
 
 							throw;
 						}
 						
-						string tempLobStr = Base64::encode( crtBuffer->buffer(), crtBuffer->size() );
+						string tempLobStr = Base64::encode( tiffFileContents );
 						string guid = Collaboration::GenerateGuid();
 						
 						ParametersVector myParams;
