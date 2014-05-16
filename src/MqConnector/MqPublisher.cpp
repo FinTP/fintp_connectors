@@ -641,8 +641,10 @@ void MqPublisher::GetIDImage( const string& groupId, const string& correlationId
 		paramCorrelationId->setString( correlationId );
 		paramCorrelationId->setName( "in_correlationid" );
 		myParams.push_back( paramCorrelationId );
-		
-		result = m_CurrentDatabase->ExecuteQuery( DataCommand::SP, "GETIMAGEFORTFD", myParams );
+
+		m_CurrentDatabase->BeginTransaction();
+		result = m_CurrentDatabase->ExecuteQuery( DataCommand::SP, "getimageforcsm", myParams );
+		m_CurrentDatabase->EndTransaction( TransactionType::COMMIT );
 		DEBUG( "Get image for ID message. Image correlation id is [" << correlationId << "]" );
 		
 		// daca result este NULL ExecuteQuery face throw
