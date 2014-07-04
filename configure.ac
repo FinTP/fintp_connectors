@@ -54,12 +54,6 @@ fi
 
 ZIPARCHIVE
 
-AC_ARG_WITH(udal,
- [AS_HELP_STRING([--with-udal], [udal support(default is no)])],
- [with_udal=yes], [with_udal=no])
-
-AM_CONDITIONAL(COMP_UDAL, test $with_udal == yes)
-
 AC_CONFIG_FILES([Makefile])
 
 AC_OUTPUT

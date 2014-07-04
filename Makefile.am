@@ -1,18 +1,17 @@
 ACLOCAL_AMFLAGS = -I ../fintp_utils/m4
 
-if COMP_UDAL
- UDAL_CPPFLAGS = -I$(FINTP_HOME)/fintp_udal/src
- bin_PROGRAMS = FinTPDBConnector
- FinTPDBConnector_SOURCES = $(SRCS)
- FinTPDBConnector_LDFLAGS = $(LIBFLAGS) -L$(FINTP_HOME)/fintp_udal/.libs -lfintp_udal
-else
- UDAL_CPPFLAGS = -DNO_DB
- bin_PROGRAMS = FinTPNODBConnector
- FinTPNODBConnector_SOURCES = $(SRCS)
- FinTPNODBConnector_LDFLAGS = $(LIBFLAGS)
-endif
+bin_PROGRAMS = FinTPDBConnector	\
+FinTPNODBConnector
 
-AM_CPPFLAGS = -DUNIX -DDEBUG_ENABLED -DXALAN_1_9	\
+FinTPDBConnector_SOURCES = $(COMMON_SRCS) $(DB)
+FinTPDBConnector_CPPFLAGS = $(COMMON_CPPFLAGS) -I$(FINTP_HOME)/fintp_udal/src
+FinTPDBConnector_LDFLAGS = $(LIBFLAGS) -L$(FINTP_HOME)/fintp_udal/.libs -lfintp_udal
+
+FinTPNODBConnector_SOURCES = $(COMMON_SRCS)
+FinTPNODBConnector_CPPFLAGS = $(COMMON_CPPFLAGS) -DNO_DB
+FinTPNODBConnector_LDFLAGS = $(LIBFLAGS)
+
+COMMON_CPPFLAGS = -DUNIX -DDEBUG_ENABLED -DXALAN_1_9	\
 -I$(FINTP_HOME)/fintp_utils/src	\
 -I$(FINTP_HOME)/fintp_log/src	\
 -I$(FINTP_HOME)/fintp_base/src	\
@@ -22,8 +21,7 @@ AM_CPPFLAGS = -DUNIX -DDEBUG_ENABLED -DXALAN_1_9	\
 @PTHREAD_CFLAGS@	\
 @XERCES_CPPFLAGS@	\
 @XALAN_CPPFLAGS@	\
-@ZIP_CPPFLAGS@	\
-$(UDAL_CPPFLAGS)
+@ZIP_CPPFLAGS@
 
 LIBFLAGS = @LDFLAGS@ @LIBS@	\
 @BOOST_LDFLAGS@ @BOOST_REGEX_LIB@ -lboost_regex\
@@ -36,13 +34,6 @@ LIBFLAGS = @LDFLAGS@ @LIBS@	\
 -L$(FINTP_HOME)/fintp_base/.libs -lfintp_base 
 
 AUTOMAKE_OPTIONS = foreign
-
-if COMP_UDAL
- SRCS = $(COMMON_SRCS)\
-$(DB)
-else
- SRCS = $(COMMON_SRCS)
-endif
 
 COMMON_SRCS = src/FileConnector/FileFetcher.cpp	\
 src/FileConnector/FilePublisher.cpp	\
