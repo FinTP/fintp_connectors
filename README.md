@@ -3,22 +3,6 @@ fintp_connectors
 
 Enables the FinTP server to communicate with other systems and applications	
 
-Building
------
-See [Build Instructions](https://github.com/FinTP/fintp_connectors/wiki/Build-instructions) for steps required to build a fintp connector.
-
-Usage
------
-See [Usage](https://github.com/FinTP/fintp_connectors/wiki/Usage) for a list of usage scenarios.
-
-Installation
------
-See [Installation](https://github.com/FinTP/fintp_connectors/wiki/Installation) for steps required to install and configure a connector.
-
-Contributing
------
-See [How To Contribute](http://www.fintp.org/how-to-contribute) for a list of areas where help is needed.
-
 Requirements
 ------------
 - Boost
@@ -34,6 +18,22 @@ Requirements
 - **fintp_base**
 
 See [Getting Started](http://www.fintp.org/getting-started/) to build and install this requirements
+
+Building
+-----
+See [Build Instructions](https://github.com/FinTP/fintp_connectors/wiki/Build-instructions) for steps required to build a fintp connector.
+
+Installation
+-----
+See [Installation](https://github.com/FinTP/fintp_connectors/wiki/Installation) for steps required to install and configure a connector.
+
+Usage
+-----
+See [Usage](https://github.com/FinTP/fintp_connectors/wiki/Usage) for a list of usage scenarios.
+
+Contributing
+-----
+See [How To Contribute](http://www.fintp.org/how-to-contribute) for a list of areas where help is needed.
 
 License
 -------
