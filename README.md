@@ -25,11 +25,11 @@ See [Build Instructions](https://github.com/FinTP/fintp_connectors/wiki/Build-in
 
 Installation
 -----
-See [Installation](https://github.com/FinTP/fintp_connectors/wiki/Installation) for steps required to install and configure a connector.
+See [Installation](https://github.com/FinTP/fintp_connectors/wiki/Installation) for steps required to install connectors.
 
 Usage
 -----
-See [Usage](https://github.com/FinTP/fintp_connectors/wiki/Usage) for a list of usage scenarios.
+See [Usage](https://github.com/FinTP/fintp_connectors/wiki/Usage) for a list of usage scenarios and detailed configuration options.
 
 Contributing
 -----
